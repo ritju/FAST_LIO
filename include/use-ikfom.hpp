@@ -44,16 +44,19 @@ MTK::get_cov<process_noise_ikfom>::type process_noise_cov()
 
 //double L_offset_to_I[3] = {0.04165, 0.02326, -0.0284}; // Avia 
 //vect3 Lidar_offset_to_IMU(L_offset_to_I, 3);
+//ast_lio2论文公式(2), 起始这里的f就是将imu的积分方程组成矩阵形式然后再去计算
 Eigen::Matrix<double, 24, 1> get_f(state_ikfom &s, const input_ikfom &in)
 {
+	// 将imu积分方程矩阵初始化为0,这里的24个对应了速度(3)，角速度(3),外参偏置T(3),外参偏置R(3)，加速度(3),角速度偏置(3),加速度偏置(3),位置(3)，与论文公式不一致
 	Eigen::Matrix<double, 24, 1> res = Eigen::Matrix<double, 24, 1>::Zero();
 	vect3 omega;
-	in.gyro.boxminus(omega, s.bg);
+	in.gyro.boxminus(omega, s.bg);// 得到imu的角速度
+	// 加速度转到世界坐标系
 	vect3 a_inertial = s.rot * (in.acc-s.ba); 
 	for(int i = 0; i < 3; i++ ){
-		res(i) = s.vel[i];
-		res(i + 3) =  omega[i]; 
-		res(i + 12) = a_inertial[i] + s.grav[i]; 
+		res(i) = s.vel[i]; //更新的速度
+		res(i + 3) =  omega[i];  //更新的角速度
+		res(i + 12) = a_inertial[i] + s.grav[i]; //更新的加速度
 	}
 	return res;
 }

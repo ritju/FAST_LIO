@@ -804,104 +804,155 @@ int main(int argc, char** argv)
     rclcpp::init(argc, argv);
     auto node = std::make_shared<rclcpp::Node>("laserMapping_node");
 
-    //是否发布当前正在扫描的点云的topic
+    //
     if(!node->get_parameter("publish/path_en", path_en))
         path_en = true;
-    //是否发布经过运动畸变校正注册到IMU坐标系的点云的topic，
+    //是否发布当前正在扫描的点云的topic
     if(!node->get_parameter("publish/scan_publish_en", scan_pub_en))
         scan_pub_en = true;
-    //是否发布经过运动畸变校正注册到IMU坐标系的点云的topic，需要该变量和上一个变量同时为true才发布
+    //是否发布经过运动畸变校正注册到IMU坐标系的点云的topic，
     if(!node->get_parameter("publish/dense_publish_en", dense_pub_en))
         dense_pub_en = true;
-    //
+    //是否发布经过运动畸变校正注册到IMU坐标系的点云的topic，需要该变量和上一个变量同时为true才发布
     if(!node->get_parameter("publish/scan_bodyframe_pub_en", scan_body_pub_en))
         scan_body_pub_en = true;
+    //卡尔曼滤波的最大迭代次数
     if(!node->get_parameter("max_iteration", NUM_MAX_ITERATIONS))
         NUM_MAX_ITERATIONS = 4;
+    //地图保存路径
     if(!node->get_parameter("map_file_path", map_file_path))
         map_file_path = "";
+    //激光雷达点云topic名称
     if(!node->get_parameter("common/lid_topic", lid_topic))
         lid_topic = "/livox/lidar";
+    //IMU的topic名称
     if(!node->get_parameter("common/imu_topic", imu_topic))
         imu_topic = "/livox/imu";
+    //是否需要时间同步，只有当外部未进行时间同步时设为true
     if(!node->get_parameter("common/time_sync_en", time_sync_en))
         time_sync_en = false;
+    //
     if(!node->get_parameter("common/time_offset_lidar_to_imu", time_diff_lidar_to_imu))
         time_diff_lidar_to_imu = 0.0;
+    //VoxelGrid降采样时的体素大小
     if(!node->get_parameter("filter_size_corner", filter_size_corner_min))
         filter_size_corner_min = 0.5;
+    //VoxelGrid降采样时的体素大小
     if(!node->get_parameter("filter_size_surf", filter_size_surf_min))
         filter_size_surf_min = 0.5;
+    //VoxelGrid降采样时的体素大小
     if(!node->get_parameter("filter_size_map", filter_size_map_min))
         filter_size_map_min = 0.5;
+    //地图的局部区域的长度（FastLio2论文中有解释）
     if(!node->get_parameter("cube_side_length", cube_len))
         cube_len = 200;
+    //激光雷达的最大探测范围
     if(!node->get_parameter("mapping/det_range", DET_RANGE))
-        DET_RANGE = 300.f;
+        DET_RANGE = 30.f;
+    //激光雷达的视场角
     if(!node->get_parameter("mapping/fov_degree", fov_deg))
-        fov_deg = 180.0;
+        fov_deg = 270.0;
+    //IMU陀螺仪的协方差
     if(!node->get_parameter("mapping/gyr_cov", gyr_cov))
         gyr_cov = 0.1;
+    //IMU加速度的协方差
     if(!node->get_parameter("mapping/acc_cov", acc_cov))
         acc_cov = 0.1;
+    //IMU陀螺仪偏置的协方差
     if(!node->get_parameter("mapping/b_gyr_cov", b_gyr_cov))
         b_gyr_cov = 0.0001;
+    //IMU加速度计偏置的协方差
     if(!node->get_parameter("mapping/b_acc_cov", b_acc_cov))
         b_acc_cov = 0.0001;
-    if(!node->get_parameter("preprocess/blind", p_pre->blind)) //最小距离阈值，即过滤掉0～blind范围内的点云
+    //最小距离阈值，即过滤掉0～blind范围内的点云
+    if(!node->get_parameter("preprocess/blind", p_pre->blind)) 
         p_pre->blind = 0.1;
+    //激光雷达的类型
     if(!node->get_parameter("preprocess/lidar_type", p_pre->lidar_type))
         p_pre->lidar_type = VELO16;
+    //激光雷达扫描的线数（livox avia为6线）
     if(!node->get_parameter("preprocess/scan_line", p_pre->N_SCANS))
         p_pre->N_SCANS = 1;
+    //点云时间搓的单位
     if(!node->get_parameter("preprocess/timestamp_unit", p_pre->time_unit))
         p_pre->time_unit = MS;
+    //雷达话题的频率
     if(!node->get_parameter("preprocess/scan_rate", p_pre->SCAN_RATE))
         p_pre->SCAN_RATE = 28;
+    //采样间隔，即每隔point_filter_num个点取1个点
     if(!node->get_parameter("point_filter_num", p_pre->point_filter_num))
         p_pre->point_filter_num = 2;
+    //是否提取特征点（FAST_LIO2默认不进行特征点提取）
     if(!node->get_parameter("feature_extract_enable", p_pre->feature_enabled))
         p_pre->feature_enabled = false;
+    //是否输出调试log信息
     if(!node->get_parameter("runtime_pos_log_enable", runtime_pos_log))
         runtime_pos_log = 0;
     if(!node->get_parameter("mapping/extrinsic_est_en", extrinsic_est_en))
         extrinsic_est_en = true;
+    // 是否将点云地图保存到PCD文件
     if(!node->get_parameter("pcd_save/pcd_save_en", pcd_save_en))
         pcd_save_en = false;
     if(!node->get_parameter("pcd_save/interval", pcd_save_interval))
         pcd_save_interval = -1;
+    //雷达相对于IMU的外参T（即雷达在IMU坐标系中的坐标）
     if(!node->get_parameter("mapping/extrinsic_T", extrinT))
         extrinT = vector<double>(3, 0.0);
+    //雷达相对于IMU的外参R
     if(!node->get_parameter("mapping/extrinsic_R", extrinR))
         extrinR = vector<double>(9, 0.0);
     cout << "p_pre->lidar_type " << p_pre->lidar_type << endl;
     
+    //初始化path的header（包括时间戳和帧id），path用于保存odemetry的路径
     path.header.stamp    = node->get_clock()->now();
     // path.header.frame_id = "camera_init";
     path.header.frame_id = "laser_link";
 
     /*** variables definition ***/
-    int effect_feat_num = 0, frame_num = 0;
-    double deltaT, deltaR, aver_time_consu = 0, aver_time_icp = 0, aver_time_match = 0, aver_time_incre = 0, aver_time_solve = 0, aver_time_const_H_time = 0;
+    //后面的代码中没有用到该变量
+    int effect_feat_num = 0;
+    //雷达总帧数
+    int frame_num = 0;
+    //后面的代码中没有用到该变量
+    double deltaT, deltaR;
+    //每帧平均的处理总时间
+    double aver_time_consu = 0;
+    //每帧中icp的平均时间
+    double aver_time_icp = 0;
+    //每帧中匹配的平均时间
+    double aver_time_match = 0;
+    //每帧中ikd-tree增量处理的平均时间
+    double aver_time_incre = 0;
+    //每帧中计算的平均时间
+    double aver_time_solve = 0;
+    //每帧中计算的平均时间（当H恒定时）
+    double aver_time_const_H_time = 0;
+    //后面的代码中没有用到该变量
     bool flg_EKF_converged, EKF_stop_flg = 0;
     
+    //这里没用到
     FOV_DEG = (fov_deg + 10.0) > 179.9 ? 179.9 : (fov_deg + 10.0);
     HALF_FOV_COS = cos((FOV_DEG) * 0.5 * PI_M / 180.0);
 
     _featsArray.reset(new PointCloudXYZI());
 
+    //将数组point_selected_surf内元素的值全部设为true，数组point_selected_surf用于选择平面点
     memset(point_selected_surf, true, sizeof(point_selected_surf));
+    //数组res_last内元素的值全部设置为-1000.0f，数组res_last用于平面拟合中
     memset(res_last, -1000.0f, sizeof(res_last));
+    //VoxelGrid滤波器参数，即进行滤波时的创建的体素边长为filter_size_surf_min
     downSizeFilterSurf.setLeafSize(filter_size_surf_min, filter_size_surf_min, filter_size_surf_min);
+    //VoxelGrid滤波器参数，即进行滤波时的创建的体素边长为filter_size_map_min
     downSizeFilterMap.setLeafSize(filter_size_map_min, filter_size_map_min, filter_size_map_min);
+    //重复操作 没有必要
     memset(point_selected_surf, true, sizeof(point_selected_surf));
     memset(res_last, -1000.0f, sizeof(res_last));
 
-    cout << extrinT[0] << endl;
-    cout << extrinT[1] << endl;
-    cout << extrinT[2] << endl;
+    //从雷达到IMU的外参R和T
     Lidar_T_wrt_IMU << VEC_FROM_ARRAY(extrinT);
     Lidar_R_wrt_IMU << MAT_FROM_ARRAY(extrinR);
+
+    //设置IMU的参数，对p_imu进行初始化，其中p_imu为ImuProcess的智能指针（ImuProcess是进行IMU处理的类）
     p_imu->set_extrinsic(Lidar_T_wrt_IMU, Lidar_R_wrt_IMU);
     p_imu->set_gyr_cov(V3D(gyr_cov, gyr_cov, gyr_cov));
     p_imu->set_acc_cov(V3D(acc_cov, acc_cov, acc_cov));
@@ -909,10 +960,14 @@ int main(int argc, char** argv)
     p_imu->set_acc_bias_cov(V3D(b_acc_cov, b_acc_cov, b_acc_cov));
 
     double epsi[23] = {0.001};
-    fill(epsi, epsi+23, 0.001);
+    fill(epsi, epsi + 23, 0.001); ////从epsi填充到epsi+22 也就是全部数组置0.001
+    // 将函数地址传入kf对象中，用于接收特定于系统的模型及其差异
+    // 作为一个维数变化的特征矩阵进行测量。
+    // 通过一个函数（h_dyn_share_in）同时计算测量（z）、估计测量（h）、偏微分矩阵（h_x，h_v）和噪声协方差（R）。
     kf.init_dyn_share(get_f, df_dx, df_dw, h_share_model, NUM_MAX_ITERATIONS, epsi);
 
     /*** debug record ***/
+    //// 将调试log输出到文件中
     FILE *fp;
     string pos_log_dir = root_dir + "/Log/pos_log.txt";
     fp = fopen(pos_log_dir.c_str(),"w");
@@ -927,6 +982,7 @@ int main(int argc, char** argv)
     //     cout << "~~~~"<<ROOT_DIR<<" doesn't exist" << endl;
 
     /*** ROS subscribe initialization ***/
+    //雷达点云的订阅器sub_pcl，订阅点云的topic
     if(p_pre->lidar_type == AVIA)
     {
         node->create_subscription<livox_ros_driver::msg::CustomMsg>(lid_topic, 20000, livox_pcl_cbk);
@@ -936,24 +992,34 @@ int main(int argc, char** argv)
         node->create_subscription<sensor_msgs::msg::PointCloud2>(lid_topic, 20000, standard_pcl_cbk);
     }
     
+    //IMU的订阅器sub_imu，订阅IMU的topic
     node->create_subscription<sensor_msgs::msg::Imu>(imu_topic, 20000, imu_cbk);
 
+    //发布当前正在扫描的点云，topic名字为/cloud_registered
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pubLaserCloudFull = 
         node->create_publisher<sensor_msgs::msg::PointCloud2>("/cloud_registered", 10000);
 
+    //发布经过运动畸变校正到IMU坐标系的点云，topic名字为/cloud_registered_body
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pubLaserCloudFull_body =
         node->create_publisher<sensor_msgs::msg::PointCloud2>("/cloud_registered_body", 10000);
+    
+    //后面的代码中没有用到
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pubLaserCloudEffect =
         node->create_publisher<sensor_msgs::msg::PointCloud2>("/cloud_effected", 10000);
+    //后面的代码中没有用到
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pubLaserCloudMap =
         node->create_publisher<sensor_msgs::msg::PointCloud2>("/Laser_map", 10000);
+    //发布当前里程计信息，topic名字为/Odometry
     rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr pubOdomAftMapped =
         node->create_publisher<nav_msgs::msg::Odometry>("/Odometry", 10000);
+    //发布里程计总的路径，topic名字为/path
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr pubPath =
         node->create_publisher<nav_msgs::msg::Path>("/path", 100000);
 
 //------------------------------------------------------------------------------------------------------
+    //中断处理函数，如果有中断信号（比如Ctrl+C），则执行第二个参数里面的SigHandle函数
     signal(SIGINT, SigHandle);
+    //设置ROS程序主循环每次运行的时间至少为0.0002秒（5000Hz）
     rclcpp::Rate rate(5000);
     while (rclcpp::ok())
     {
