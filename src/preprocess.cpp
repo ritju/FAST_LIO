@@ -1,4 +1,5 @@
 #include "preprocess.h"
+#include "tf2_ros/buffer_interface.h"
 
 #define RETURN0     0x00
 #define RETURN0AND1 0x10
@@ -41,13 +42,13 @@ void Preprocess::set(bool feat_en, int lid_type, double bld, int pfilt_num)
   point_filter_num = pfilt_num;
 }
 
-void Preprocess::process(const livox_ros_driver::CustomMsg::ConstPtr &msg, PointCloudXYZI::Ptr &pcl_out)
+void Preprocess::process(const livox_ros_driver::msg::CustomMsg::ConstPtr &msg, PointCloudXYZI::Ptr &pcl_out)
 {  
   avia_handler(msg);
   *pcl_out = pl_surf;
 }
 
-void Preprocess::process(const sensor_msgs::PointCloud2::ConstPtr &msg, PointCloudXYZI::Ptr &pcl_out)
+void Preprocess::process(const sensor_msgs::msg::PointCloud2::ConstPtr &msg, PointCloudXYZI::Ptr &pcl_out)
 {
   switch (time_unit)
   {
@@ -85,7 +86,7 @@ void Preprocess::process(const sensor_msgs::PointCloud2::ConstPtr &msg, PointClo
   *pcl_out = pl_surf;
 }
 
-void Preprocess::avia_handler(const livox_ros_driver::CustomMsg::ConstPtr &msg)
+void Preprocess::avia_handler(const livox_ros_driver::msg::CustomMsg::ConstPtr &msg)
 {
   pl_surf.clear();
   pl_corn.clear();
@@ -169,9 +170,9 @@ void Preprocess::avia_handler(const livox_ros_driver::CustomMsg::ConstPtr &msg)
           pl_full[i].intensity = msg->points[i].reflectivity;
           pl_full[i].curvature = msg->points[i].offset_time / float(1000000); // use curvature as time of each laser points, curvature unit: ms
 
-          if(((abs(pl_full[i].x - pl_full[i-1].x) > 1e-7) 
+          if((abs(pl_full[i].x - pl_full[i-1].x) > 1e-7) 
               || (abs(pl_full[i].y - pl_full[i-1].y) > 1e-7)
-              || (abs(pl_full[i].z - pl_full[i-1].z) > 1e-7))
+              || (abs(pl_full[i].z - pl_full[i-1].z) > 1e-7)
               && (pl_full[i].x * pl_full[i].x + pl_full[i].y * pl_full[i].y + pl_full[i].z * pl_full[i].z > (blind * blind)))
           {
             pl_surf.push_back(pl_full[i]);
@@ -182,7 +183,7 @@ void Preprocess::avia_handler(const livox_ros_driver::CustomMsg::ConstPtr &msg)
   }
 }
 
-void Preprocess::oust64_handler(const sensor_msgs::PointCloud2::ConstPtr &msg)
+void Preprocess::oust64_handler(const sensor_msgs::msg::PointCloud2::ConstPtr &msg)
 {
   pl_surf.clear();
   pl_corn.clear();
@@ -248,7 +249,7 @@ void Preprocess::oust64_handler(const sensor_msgs::PointCloud2::ConstPtr &msg)
   }
   else
   {
-    double time_stamp = msg->header.stamp.toSec();
+    double time_stamp = tf2_ros::timeToSec(msg->header.stamp);
     // cout << "===================================" << endl;
     // printf("Pt size = %d, N_SCANS = %d\r\n", plsize, N_SCANS);
     for (int i = 0; i < pl_orig.points.size(); i++)
@@ -277,7 +278,7 @@ void Preprocess::oust64_handler(const sensor_msgs::PointCloud2::ConstPtr &msg)
   // pub_func(pl_surf, pub_corn, msg->header.stamp);
 }
 
-void Preprocess::velodyne_handler(const sensor_msgs::PointCloud2::ConstPtr &msg)
+void Preprocess::velodyne_handler(const sensor_msgs::msg::PointCloud2::ConstPtr &msg)
 {
     pl_surf.clear();
     pl_corn.clear();
@@ -675,7 +676,7 @@ void Preprocess::give_feature(pcl::PointCloud<PointType> &pl, vector<orgtype> &t
 
   plsize2 = plsize-1;
   double ratio;
-  for(uint i=head+1; i<plsize2; i++)
+  for(uint i = head + 1; i < plsize2; i ++)
   {
     if(types[i].range<blind || types[i-1].range<blind || types[i+1].range<blind)
     {
@@ -765,10 +766,10 @@ void Preprocess::give_feature(pcl::PointCloud<PointType> &pl, vector<orgtype> &t
   }
 }
 
-void Preprocess::pub_func(PointCloudXYZI &pl, const ros::Time &ct)
+void Preprocess::pub_func(PointCloudXYZI &pl, const rclcpp::Time &ct)
 {
   pl.height = 1; pl.width = pl.size();
-  sensor_msgs::PointCloud2 output;
+  sensor_msgs::msg::PointCloud2 output;
   pcl::toROSMsg(pl, output);
   output.header.frame_id = "livox";
   output.header.stamp = ct;
