@@ -357,7 +357,7 @@ void Preprocess::velodyne_handler(const sensor_msgs::msg::PointCloud2::ConstPtr 
         added_pt.curvature = pl_orig.points[i].time * time_unit_scale; // units: ms 使用曲率作为每个激光点的时间
 
         if (!given_offset_time)
-        {//如果没有提供时间戳
+        {//如果没有提供时间,相对于第一个点时间
           double yaw_angle = atan2(added_pt.y, added_pt.x) * 57.2957;
           if (is_first[layer])
           {
