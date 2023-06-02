@@ -148,6 +148,10 @@ geometry_msgs::msg::PoseStamped msg_body_pose;
 
 shared_ptr<Preprocess> p_pre(new Preprocess()); // 定义指向激光雷达数据的预处理类Preprocess的智能指针
 shared_ptr<ImuProcess> p_imu(new ImuProcess()); // 定义指向IMU数据预处理类ImuProcess的智能指针
+rclcpp::Subscription<livox_ros_driver::msg::CustomMsg>::SharedPtr livox_cloud2_sub_;
+rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr point_cloud2_sub_;//点云数据订阅话题
+rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_sub_;//IMU数据订阅话题
+
 //唤醒所有线程
 void SigHandle(int sig)
 {
@@ -304,7 +308,7 @@ builtin_interfaces::msg::Time time_from_sec(double time)
 }
 //下面的时间同步默认为false 而且同步策略没太看懂
 //除了AVIA类型之外的雷达点云预处理
-void standard_pcl_cbk(sensor_msgs::msg::PointCloud2::ConstPtr msg)
+void standard_pcl_cbk(sensor_msgs::msg::PointCloud2::SharedPtr msg)
 {
     mtx_buffer.lock();
     scan_count ++;
@@ -333,7 +337,7 @@ bool   timediff_set_flg = false; // 时间同步flag，false表示未进行时�
  * @param msg Livox自定义的msg格式，包含Livox激光雷达点云数据
  * @return void
  */
-void livox_pcl_cbk(livox_ros_driver::msg::CustomMsg::ConstPtr msg)
+void livox_pcl_cbk(livox_ros_driver::msg::CustomMsg::SharedPtr msg)
 {
     // 互斥锁
     mtx_buffer.lock();
@@ -379,7 +383,7 @@ void livox_pcl_cbk(livox_ros_driver::msg::CustomMsg::ConstPtr msg)
  * @param msg_in IMU Msg
  * @return void
  */
-void imu_cbk(sensor_msgs::msg::Imu::ConstPtr msg_in) 
+void imu_cbk(sensor_msgs::msg::Imu::SharedPtr msg_in) 
 {
     publish_count ++;
     // cout<<"IMU got at: "<<msg_in->header.stamp.toSec()<<endl;
@@ -652,7 +656,7 @@ void set_posestamp(T & out)
     
 }
 //发布里程计 发布tf变换
-void publish_odometry(const rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr & pubOdomAftMapped)
+void publish_odometry(rclcpp::Node::SharedPtr node, rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr & pubOdomAftMapped)
 {
     // odomAftMapped.header.frame_id = "camera_init";
     // odomAftMapped.child_frame_id = "body";
@@ -675,7 +679,8 @@ void publish_odometry(const rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPt
         odomAftMapped.pose.covariance[i*6 + 5] = P(k, 2);
     }
 
-    std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster;
+    // std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster;
+    tf2_ros::TransformBroadcaster   tf_broadcaster(node);
     tf2::Transform                   transform;
     tf2::Quaternion                  q;
     transform.setOrigin(tf2::Vector3(odomAftMapped.pose.pose.position.x, \
@@ -691,11 +696,11 @@ void publish_odometry(const rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPt
     tf_msg.header.stamp = odomAftMapped.header.stamp;
     // tf_msg.header.frame_id = "camera_init";
     // tf_msg.child_frame_id = "body";
-    tf_msg.header.frame_id = "laser_link";
+    tf_msg.header.frame_id = "odom";
     tf_msg.child_frame_id = "base_link";
     tf_msg.transform = tf2::toMsg(transform);
 
-    tf_broadcaster->sendTransform(tf_msg);
+    tf_broadcaster.sendTransform(tf_msg);
     // tf_broadcaster_->sendTransform(tf2_ros::StampedTransform(transform, odomAftMapped.header.stamp, "camera_init", "body" ) );
 }
 //每隔10个发布一下位姿
@@ -861,10 +866,10 @@ int main(int argc, char** argv)
         map_file_path = "";
     //激光雷达点云topic名称
     if(!node->get_parameter("common/lid_topic", lid_topic))
-        lid_topic = "/livox/lidar";
+        lid_topic = "velodyne_point_cloud";
     //IMU的topic名称
     if(!node->get_parameter("common/imu_topic", imu_topic))
-        imu_topic = "/livox/imu";
+        imu_topic = "imu/data";
     //是否需要时间同步，只有当外部未进行时间同步时设为true
     if(!node->get_parameter("common/time_sync_en", time_sync_en))
         time_sync_en = false;
@@ -885,16 +890,16 @@ int main(int argc, char** argv)
         cube_len = 200;
     //激光雷达的最大探测范围
     if(!node->get_parameter("mapping/det_range", DET_RANGE))
-        DET_RANGE = 30.f;
+        DET_RANGE = 10.f;
     //激光雷达的视场角
     if(!node->get_parameter("mapping/fov_degree", fov_deg))
         fov_deg = 270.0;
     //IMU陀螺仪的协方差
     if(!node->get_parameter("mapping/gyr_cov", gyr_cov))
-        gyr_cov = 0.1;
+        gyr_cov = 0.01;
     //IMU加速度的协方差
     if(!node->get_parameter("mapping/acc_cov", acc_cov))
-        acc_cov = 0.1;
+        acc_cov = 0.01;
     //IMU陀螺仪偏置的协方差
     if(!node->get_parameter("mapping/b_gyr_cov", b_gyr_cov))
         b_gyr_cov = 0.0001;
@@ -924,7 +929,7 @@ int main(int argc, char** argv)
         p_pre->feature_enabled = false;
     //是否输出调试log信息
     if(!node->get_parameter("runtime_pos_log_enable", runtime_pos_log))
-        runtime_pos_log = 0;
+        runtime_pos_log = 1;
     if(!node->get_parameter("mapping/extrinsic_est_en", extrinsic_est_en))
         extrinsic_est_en = true;
     // 是否将点云地图保存到PCD文件
@@ -939,6 +944,20 @@ int main(int argc, char** argv)
     //雷达相对于IMU的外参R
     if(!node->get_parameter("mapping/extrinsic_R", extrinR))
         extrinR = vector<double>(9, 0.0);
+    extrinT[0] = 0.0;
+    extrinT[1] = 0.0;
+    extrinT[2] = 0.1;
+
+    extrinR[0] = 1.0;
+    extrinR[1] = 0.0;
+    extrinR[2] = 0.0;
+    extrinR[3] = 0.0;
+    extrinR[4] = 1.0;
+    extrinR[5] = 0.0;
+    extrinR[6] = 0.0;
+    extrinR[7] = 0.0;
+    extrinR[8] = 1.0;
+
     cout << "p_pre->lidar_type " << p_pre->lidar_type << endl;
     
     //初始化path的header（包括时间戳和帧id），path用于保存odemetry的路径
@@ -1023,15 +1042,15 @@ int main(int argc, char** argv)
     //雷达点云的订阅器sub_pcl，订阅点云的topic
     if(p_pre->lidar_type == AVIA)
     {
-        node->create_subscription<livox_ros_driver::msg::CustomMsg>(lid_topic, 20000, livox_pcl_cbk);
+        livox_cloud2_sub_ = node->create_subscription<livox_ros_driver::msg::CustomMsg>(lid_topic, 10000, livox_pcl_cbk);
     }
     else
     {
-        node->create_subscription<sensor_msgs::msg::PointCloud2>(lid_topic, 20000, standard_pcl_cbk);
+        point_cloud2_sub_ = node->create_subscription<sensor_msgs::msg::PointCloud2>(lid_topic, 10000, standard_pcl_cbk);
     }
     
     //IMU的订阅器sub_imu，订阅IMU的topic
-    node->create_subscription<sensor_msgs::msg::Imu>(imu_topic, 20000, imu_cbk);
+    imu_sub_ = node->create_subscription<sensor_msgs::msg::Imu>(imu_topic, 10000, imu_cbk);
 
     //发布当前正在扫描的点云，topic名字为/cloud_registered
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pubLaserCloudFull = 
@@ -1064,7 +1083,8 @@ int main(int argc, char** argv)
         // 如果有中断产生，则结束主循环
         if (flg_exit) break;
         // ROS消息回调处理函数，放在ROS的主循环中
-        rclcpp::spin_some(node);
+         rclcpp::spin_some(node);
+        // rclcpp::spin(node);
         // 将激光雷达点云数据和IMU数据从缓存队列中取出，进行时间对齐，并保存到Measures中
         if(sync_packages(Measures)) 
         {
@@ -1176,7 +1196,7 @@ int main(int argc, char** argv)
             double t_update_end = omp_get_wtime();
 
             /******* Publish odometry *******/
-            publish_odometry(pubOdomAftMapped);
+            publish_odometry(node, pubOdomAftMapped);
 
             /*** add the feature points to map kdtree ***/
             t3 = omp_get_wtime();
@@ -1213,7 +1233,8 @@ int main(int argc, char** argv)
                 s_plot9[time_log_counter] = aver_time_consu;
                 s_plot10[time_log_counter] = add_point_size;
                 time_log_counter ++;
-                printf("[ mapping ]: time: IMU + Map + Input Downsample: %0.6f ave match: %0.6f ave solve: %0.6f  ave ICP: %0.6f  map incre: %0.6f ave total: %0.6f icp: %0.6f construct H: %0.6f \n",t1-t0,aver_time_match,aver_time_solve,t3-t1,t5-t3,aver_time_consu,aver_time_icp, aver_time_const_H_time);
+                printf("[ mapping ]: time: IMU + Map + Input Downsample: %0.6f ave match: %0.6f ave solve: %0.6f  ave ICP: %0.6f  map incre: %0.6f ave total: %0.6f icp: %0.6f construct H: %0.6f \n",
+                                                                    t1-t0, aver_time_match, aver_time_solve, t3-t1, t5-t3, aver_time_consu, aver_time_icp, aver_time_const_H_time);
                 ext_euler = SO3ToEuler(state_point.offset_R_L_I);
                 fout_out << setw(20) << Measures.lidar_beg_time - first_lidar_time << " " << euler_cur.transpose() << " " << state_point.pos.transpose()<< " " << ext_euler.transpose() << " "<<state_point.offset_T_L_I.transpose()<<" "<< state_point.vel.transpose() \
                 <<" "<<state_point.bg.transpose()<<" "<<state_point.ba.transpose()<<" "<<state_point.grav<<" "<<feats_undistort->points.size()<<endl;
