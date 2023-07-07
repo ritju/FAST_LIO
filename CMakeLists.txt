@@ -30,7 +30,7 @@ find_package(std_msgs REQUIRED)
 find_package(pcl_ros REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2 REQUIRED)
-find_package(livox_ros_driver REQUIRED)
+find_package(livox_ros_driver2 REQUIRED)
 # find_package(eigen_conversions REQUIRED)
 # find_package(message_generation REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
@@ -83,7 +83,7 @@ ament_target_dependencies(laserMapping_node
                           std_msgs
                           geometry_msgs
                           pcl_ros
-                          livox_ros_driver
+                          livox_ros_driver2
                           nav_msgs
                           tf2_geometry_msgs
                           capella_ros_msg)
@@ -105,5 +105,8 @@ install(TARGETS
         laserMapping_node
         DESTINATION lib/${PROJECT_NAME}
 )
+
+install(DIRECTORY launch config rviz_cfg
+  DESTINATION share/${PROJECT_NAME})
 
 ament_package()

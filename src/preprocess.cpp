@@ -43,7 +43,7 @@ void Preprocess::set(bool feat_en, int lid_type, double bld, int pfilt_num)
   point_filter_num = pfilt_num; //采样间隔，即每隔point_filter_num个点取1个点
 }
 
-void Preprocess::process(const livox_ros_driver::msg::CustomMsg::ConstPtr &msg, PointCloudXYZI::Ptr &pcl_out)
+void Preprocess::process(const livox_ros_driver2::msg::CustomMsg::ConstPtr &msg, PointCloudXYZI::Ptr &pcl_out)
 {  
   avia_handler(msg);
   *pcl_out = pl_surf;
@@ -88,7 +88,7 @@ void Preprocess::process(const sensor_msgs::msg::PointCloud2::ConstPtr &msg, Poi
 }
 
 //对Livox激光雷达点云数据进行预处理
-void Preprocess::avia_handler(const livox_ros_driver::msg::CustomMsg::ConstPtr &msg)
+void Preprocess::avia_handler(const livox_ros_driver2::msg::CustomMsg::ConstPtr &msg)
 {
   // 清除之前的点云缓存
   pl_surf.clear(); // 清除之前的平面点云缓存

@@ -60,7 +60,7 @@
 #include "tf2/LinearMath/Transform.h"
 #include "tf2/LinearMath/Quaternion.h"
 #include "geometry_msgs/msg/vector3.hpp"
-#include "livox_ros_driver/msg/custom_msg.hpp"
+#include "livox_ros_driver2/msg/custom_msg.hpp"
 #include "preprocess.h"
 #include <ikd-Tree/ikd_Tree.h>
 #include "tf2_geometry_msgs/tf2_geometry_msgs.h"
@@ -148,7 +148,7 @@ geometry_msgs::msg::PoseStamped msg_body_pose;
 
 shared_ptr<Preprocess> p_pre(new Preprocess()); // 定义指向激光雷达数据的预处理类Preprocess的智能指针
 shared_ptr<ImuProcess> p_imu(new ImuProcess()); // 定义指向IMU数据预处理类ImuProcess的智能指针
-rclcpp::Subscription<livox_ros_driver::msg::CustomMsg>::SharedPtr livox_cloud2_sub_;
+rclcpp::Subscription<livox_ros_driver2::msg::CustomMsg>::SharedPtr livox_cloud2_sub_;
 rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr point_cloud2_sub_;//点云数据订阅话题
 rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_sub_;//IMU数据订阅话题
 
@@ -337,7 +337,7 @@ bool   timediff_set_flg = false; // 时间同步flag，false表示未进行时�
  * @param msg Livox自定义的msg格式，包含Livox激光雷达点云数据
  * @return void
  */
-void livox_pcl_cbk(livox_ros_driver::msg::CustomMsg::SharedPtr msg)
+void livox_pcl_cbk(livox_ros_driver2::msg::CustomMsg::SharedPtr msg)
 {
     // 互斥锁
     mtx_buffer.lock();
@@ -556,8 +556,8 @@ void publish_frame_world(const rclcpp::Publisher<sensor_msgs::msg::PointCloud2>:
         sensor_msgs::msg::PointCloud2 laserCloudmsg;
         pcl::toROSMsg(*laserCloudWorld, laserCloudmsg);
         laserCloudmsg.header.stamp = time_from_sec(lidar_end_time);
-        // laserCloudmsg.header.frame_id = "camera_init";
-        laserCloudmsg.header.frame_id = "laser_link";
+        laserCloudmsg.header.frame_id = "camera_init";
+        // laserCloudmsg.header.frame_id = "laser_link";
         pubLaserCloudFull->publish(laserCloudmsg);
         // pubLaserCloudFull.publish(laserCloudmsg);
         publish_count -= PUBFRAME_PERIOD;
@@ -626,8 +626,8 @@ void publish_effect_world(const rclcpp::Publisher<sensor_msgs::msg::PointCloud2>
     sensor_msgs::msg::PointCloud2 laserCloudFullRes3;
     pcl::toROSMsg(*laserCloudWorld, laserCloudFullRes3);
     laserCloudFullRes3.header.stamp = time_from_sec(lidar_end_time);
-    // laserCloudFullRes3.header.frame_id = "camera_init";
-    laserCloudFullRes3.header.frame_id = "laser_link";
+    laserCloudFullRes3.header.frame_id = "camera_init";
+    // laserCloudFullRes3.header.frame_id = "laser_link";
     pubLaserCloudEffect->publish(laserCloudFullRes3);
     // pubLaserCloudEffect.publish(laserCloudFullRes3);
 }
@@ -637,8 +637,8 @@ void publish_map(const rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedP
     sensor_msgs::msg::PointCloud2 laserCloudMap;
     pcl::toROSMsg(*featsFromMap, laserCloudMap);
     laserCloudMap.header.stamp = time_from_sec(lidar_end_time);
-    //laserCloudMap.header.frame_id = "camera_init";
-    laserCloudMap.header.frame_id = "laser_link";
+    laserCloudMap.header.frame_id = "camera_init";
+    // laserCloudMap.header.frame_id = "laser_link";
     pubLaserCloudMap->publish(laserCloudMap);
     // pubLaserCloudMap.publish(laserCloudMap);
 }
@@ -658,10 +658,10 @@ void set_posestamp(T & out)
 //发布里程计 发布tf变换
 void publish_odometry(rclcpp::Node::SharedPtr node, rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr & pubOdomAftMapped)
 {
-    // odomAftMapped.header.frame_id = "camera_init";
-    // odomAftMapped.child_frame_id = "body";
-    odomAftMapped.header.frame_id = "odom";
-    odomAftMapped.child_frame_id = "base_footprint";
+    odomAftMapped.header.frame_id = "camera_init";
+    odomAftMapped.child_frame_id = "body";
+    // odomAftMapped.header.frame_id = "odom";
+    // odomAftMapped.child_frame_id = "base_footprint";
     odomAftMapped.header.stamp = time_from_sec(lidar_end_time);// ros::Time().fromSec(lidar_end_time);
     set_posestamp(odomAftMapped.pose);
     pubOdomAftMapped->publish(odomAftMapped);
@@ -694,10 +694,10 @@ void publish_odometry(rclcpp::Node::SharedPtr node, rclcpp::Publisher<nav_msgs::
     
     geometry_msgs::msg::TransformStamped tf_msg;
     tf_msg.header.stamp = odomAftMapped.header.stamp;
-    // tf_msg.header.frame_id = "camera_init";
-    // tf_msg.child_frame_id = "body";
-    tf_msg.header.frame_id = "odom";
-    tf_msg.child_frame_id = "base_link";
+    tf_msg.header.frame_id = "camera_init";
+    tf_msg.child_frame_id = "body";
+    // tf_msg.header.frame_id = "odom";
+    // tf_msg.child_frame_id = "base_link";
     tf_msg.transform = tf2::toMsg(transform);
 
     tf_broadcaster.sendTransform(tf_msg);
@@ -708,8 +708,8 @@ void publish_path(const rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr &pubPa
 {
     set_posestamp(msg_body_pose);
     msg_body_pose.header.stamp = time_from_sec(lidar_end_time);
-    // msg_body_pose.header.frame_id = "camera_init";
-    msg_body_pose.header.frame_id = "laser_link";
+    msg_body_pose.header.frame_id = "camera_init";
+    // msg_body_pose.header.frame_id = "laser_link";
 
     /*** if path is too large, the rvis will crash ***/
     static int jjj = 0;
@@ -847,106 +847,142 @@ int main(int argc, char** argv)
     auto node = std::make_shared<rclcpp::Node>("laserMapping_node");
     // 从参数服务器读取参数值赋给变量（包括launch文件和launch读取的yaml文件中的参数）
     //是否发布路径的topic
-    if(!node->get_parameter("publish/path_en", path_en))
+    node->declare_parameter("publish.path_en");
+    if(!node->get_parameter("publish.path_en", path_en))
         path_en = true;
+    cout << "publish.path_en " << path_en << endl;
     //是否发布当前正在扫描的点云的topic
-    if(!node->get_parameter("publish/scan_publish_en", scan_pub_en))
+    node->declare_parameter("publish.scan_publish_en");
+    if(!node->get_parameter("publish.scan_publish_en", scan_pub_en))
         scan_pub_en = true;
     //是否发布经过运动畸变校正注册到IMU坐标系的点云的topic，
-    if(!node->get_parameter("publish/dense_publish_en", dense_pub_en))
+    node->declare_parameter("publish.dense_publish_en");
+    if(!node->get_parameter("publish.dense_publish_en", dense_pub_en))
         dense_pub_en = true;
     //是否发布经过运动畸变校正注册到IMU坐标系的点云的topic，需要该变量和上一个变量同时为true才发布
-    if(!node->get_parameter("publish/scan_bodyframe_pub_en", scan_body_pub_en))
+    node->declare_parameter("publish.scan_bodyframe_pub_en");
+    if(!node->get_parameter("publish.scan_bodyframe_pub_en", scan_body_pub_en))
         scan_body_pub_en = true;
     //卡尔曼滤波的最大迭代次数
+    node->declare_parameter("max_iteration");
     if(!node->get_parameter("max_iteration", NUM_MAX_ITERATIONS))
         NUM_MAX_ITERATIONS = 4;
     //地图保存路径
+    node->declare_parameter("map_file_path");
     if(!node->get_parameter("map_file_path", map_file_path))
         map_file_path = "";
     //激光雷达点云topic名称
-    if(!node->get_parameter("common/lid_topic", lid_topic))
+    node->declare_parameter("common.lid_topic");
+    if(!node->get_parameter("common.lid_topic", lid_topic))
         lid_topic = "velodyne_point_cloud";
     //IMU的topic名称
-    if(!node->get_parameter("common/imu_topic", imu_topic))
+    node->declare_parameter("common.imu_topic");
+    if(!node->get_parameter("common.imu_topic", imu_topic))
         imu_topic = "imu/data";
     //是否需要时间同步，只有当外部未进行时间同步时设为true
-    if(!node->get_parameter("common/time_sync_en", time_sync_en))
-        time_sync_en = false;
+    node->declare_parameter("common.time_sync_en");
+    if(!node->get_parameter("common.time_sync_en", time_sync_en))
+        time_sync_en = true;
+    cout << "common.time_sync_en " << time_sync_en << endl;
     //
-    if(!node->get_parameter("common/time_offset_lidar_to_imu", time_diff_lidar_to_imu))
+    node->declare_parameter("common.time_offset_lidar_to_imu");
+    if(!node->get_parameter("common.time_offset_lidar_to_imu", time_diff_lidar_to_imu))
         time_diff_lidar_to_imu = 0.0;
     //VoxelGrid降采样时的体素大小
+    node->declare_parameter("filter_size_corner");
     if(!node->get_parameter("filter_size_corner", filter_size_corner_min))
         filter_size_corner_min = 0.5;
     //VoxelGrid降采样时的体素大小
+    node->declare_parameter("filter_size_surf");
     if(!node->get_parameter("filter_size_surf", filter_size_surf_min))
         filter_size_surf_min = 0.5;
     //VoxelGrid降采样时的体素大小
+    node->declare_parameter("filter_size_map");
     if(!node->get_parameter("filter_size_map", filter_size_map_min))
         filter_size_map_min = 0.5;
-    //地图的局部区域的长度（FastLio2论文中有解释）
+    //地图的局部区域的长度（FastLio2论文中有解释)
+    node->declare_parameter("cube_side_length");
     if(!node->get_parameter("cube_side_length", cube_len))
         cube_len = 200;
     //激光雷达的最大探测范围
-    if(!node->get_parameter("mapping/det_range", DET_RANGE))
-        DET_RANGE = 10.f;
+    node->declare_parameter("mapping.det_range");
+    if(!node->get_parameter("mapping.det_range", DET_RANGE))
+        DET_RANGE = 30.f;
     //激光雷达的视场角
-    if(!node->get_parameter("mapping/fov_degree", fov_deg))
+    node->declare_parameter("mapping.fov_degree");
+    if(!node->get_parameter("mapping.fov_degree", fov_deg))
         fov_deg = 270.0;
     //IMU陀螺仪的协方差
-    if(!node->get_parameter("mapping/gyr_cov", gyr_cov))
+    node->declare_parameter("mapping.gyr_cov");
+    if(!node->get_parameter("mapping.gyr_cov", gyr_cov))
         gyr_cov = 0.01;
     //IMU加速度的协方差
-    if(!node->get_parameter("mapping/acc_cov", acc_cov))
+    node->declare_parameter("mapping.acc_cov");
+    if(!node->get_parameter("mapping.acc_cov", acc_cov))
         acc_cov = 0.01;
     //IMU陀螺仪偏置的协方差
-    if(!node->get_parameter("mapping/b_gyr_cov", b_gyr_cov))
+    node->declare_parameter("mapping.b_gyr_cov");
+    if(!node->get_parameter("mapping.b_gyr_cov", b_gyr_cov))
         b_gyr_cov = 0.0001;
     //IMU加速度计偏置的协方差
-    if(!node->get_parameter("mapping/b_acc_cov", b_acc_cov))
+    node->declare_parameter("mapping.b_acc_cov");
+    if(!node->get_parameter("mapping.b_acc_cov", b_acc_cov))
         b_acc_cov = 0.0001;
     //最小距离阈值，即过滤掉0～blind范围内的点云
-    if(!node->get_parameter("preprocess/blind", p_pre->blind)) 
-        p_pre->blind = 0.1;
+    node->declare_parameter("preprocess.blind");
+    if(!node->get_parameter("preprocess.blind", p_pre->blind)) 
+        p_pre->blind = 0.5;
     //激光雷达的类型
-    if(!node->get_parameter("preprocess/lidar_type", p_pre->lidar_type))
+    node->declare_parameter("preprocess.lidar_type");
+    if(!node->get_parameter("preprocess.lidar_type", p_pre->lidar_type))
         p_pre->lidar_type = VELO16;
     //激光雷达扫描的线数（livox avia为6线）
-    if(!node->get_parameter("preprocess/scan_line", p_pre->N_SCANS))
+    node->declare_parameter("preprocess.scan_line");
+    if(!node->get_parameter("preprocess.scan_line", p_pre->N_SCANS))
         p_pre->N_SCANS = 1;
     //点云时间搓的单位
-    if(!node->get_parameter("preprocess/timestamp_unit", p_pre->time_unit))
+    node->declare_parameter("preprocess.timestamp_unit");
+    if(!node->get_parameter("preprocess.timestamp_unit", p_pre->time_unit))
         p_pre->time_unit = MS;
     //雷达话题的频率
-    if(!node->get_parameter("preprocess/scan_rate", p_pre->SCAN_RATE))
+    node->declare_parameter("preprocess.scan_rate");
+    if(!node->get_parameter("preprocess.scan_rate", p_pre->SCAN_RATE))
         p_pre->SCAN_RATE = 28;
     //采样间隔，即每隔point_filter_num个点取1个点
+    node->declare_parameter("point_filter_num");
     if(!node->get_parameter("point_filter_num", p_pre->point_filter_num))
         p_pre->point_filter_num = 2;
     //是否提取特征点（FAST_LIO2默认不进行特征点提取）
+    node->declare_parameter("feature_extract_enable");
     if(!node->get_parameter("feature_extract_enable", p_pre->feature_enabled))
         p_pre->feature_enabled = false;
     //是否输出调试log信息
+    node->declare_parameter("runtime_pos_log_enable");
     if(!node->get_parameter("runtime_pos_log_enable", runtime_pos_log))
         runtime_pos_log = 1;
-    if(!node->get_parameter("mapping/extrinsic_est_en", extrinsic_est_en))
-        extrinsic_est_en = true;
+    cout << "runtime_pos_log_enable " << runtime_pos_log << endl;
+    node->declare_parameter("mapping.extrinsic_est_en");
+    if(!node->get_parameter("mapping.extrinsic_est_en", extrinsic_est_en))
+        extrinsic_est_en = false;
     // 是否将点云地图保存到PCD文件
-    if(!node->get_parameter("pcd_save/pcd_save_en", pcd_save_en))
+    node->declare_parameter("pcd_save.pcd_save_en");
+    if(!node->get_parameter("pcd_save.pcd_save_en", pcd_save_en))
         pcd_save_en = false;
     // 每一个PCD文件保存多少个雷达帧（-1表示所有雷达帧都保存在一个PCD文件中）
-    if(!node->get_parameter("pcd_save/interval", pcd_save_interval))
+    node->declare_parameter("pcd_save.interval");
+    if(!node->get_parameter("pcd_save.interval", pcd_save_interval))
         pcd_save_interval = -1;
     //雷达相对于IMU的外参T（即雷达在IMU坐标系中的坐标）
-    if(!node->get_parameter("mapping/extrinsic_T", extrinT))
+    node->declare_parameter("mapping.extrinsic_T");
+    if(!node->get_parameter("mapping.extrinsic_T", extrinT))
         extrinT = vector<double>(3, 0.0);
     //雷达相对于IMU的外参R
-    if(!node->get_parameter("mapping/extrinsic_R", extrinR))
+    node->declare_parameter("mapping.extrinsic_R");
+    if(!node->get_parameter("mapping.extrinsic_R", extrinR))
         extrinR = vector<double>(9, 0.0);
-    extrinT[0] = 0.0;
-    extrinT[1] = 0.0;
-    extrinT[2] = 0.1;
+    extrinT[0] = 0.05;
+    extrinT[1] = -0.1;
+    extrinT[2] = 0.05;
 
     extrinR[0] = 1.0;
     extrinR[1] = 0.0;
@@ -962,8 +998,8 @@ int main(int argc, char** argv)
     
     //初始化path的header（包括时间戳和帧id），path用于保存odemetry的路径
     path.header.stamp    = node->get_clock()->now();
-    // path.header.frame_id = "camera_init";
-    path.header.frame_id = "laser_link";
+    path.header.frame_id = "camera_init";
+    // path.header.frame_id = "laser_link";
 
     /*** variables definition ***/
     //后面的代码中没有用到该变量
@@ -1042,7 +1078,7 @@ int main(int argc, char** argv)
     //雷达点云的订阅器sub_pcl，订阅点云的topic
     if(p_pre->lidar_type == AVIA)
     {
-        livox_cloud2_sub_ = node->create_subscription<livox_ros_driver::msg::CustomMsg>(lid_topic, 10000, livox_pcl_cbk);
+        livox_cloud2_sub_ = node->create_subscription<livox_ros_driver2::msg::CustomMsg>(lid_topic, 10000, livox_pcl_cbk);
     }
     else
     {
